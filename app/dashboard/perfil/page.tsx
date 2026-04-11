@@ -23,8 +23,14 @@ import {
   DollarSign,
   Edit,
   Save,
-  X
+  X,
+  TrendingDown,
+  AlertCircle,
+  CheckCircle,
+  Zap
 } from "lucide-react"
+import { getEmployeeImage } from "@/lib/image-storage"
+import { getPendingDeductionsForEmployee, getLoanStatus } from "@/lib/loan-management"
 
 export default function PerfilPage() {
   const { user, updateUserAvatar, updateUserProfile } = useAuth()
@@ -218,6 +224,7 @@ export default function PerfilPage() {
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
           <TabsTrigger value="info">Informacion Personal</TabsTrigger>
+          <TabsTrigger value="financial">Historial Financiero</TabsTrigger>
           <TabsTrigger value="documents">Documentos</TabsTrigger>
           <TabsTrigger value="payroll">Mi Nomina</TabsTrigger>
           <TabsTrigger value="attendance">Asistencia</TabsTrigger>
@@ -329,6 +336,78 @@ export default function PerfilPage() {
                       disabled={!isEditing}
                     />
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="financial" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Préstamos Activos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Préstamos Activos
+                </CardTitle>
+                <CardDescription>Deudas en proceso de pago</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {user && employeeData && (
+                  <>
+                    {/* Nota: Los préstamos se obtendrían del contexto */}
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
+                      <p className="text-sm text-amber-900 dark:text-amber-200">
+                        No tienes préstamos activos en este momento
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Solicitudes Pendientes */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Solicitudes Pendientes
+                </CardTitle>
+                <CardDescription>Solicitudes en revisión</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3">
+                  <p className="text-sm text-blue-900 dark:text-blue-200">
+                    No tienes solicitudes pendientes
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Estado de Nóminas */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Estado de Nóminas</CardTitle>
+              <CardDescription>Información sobre descuentos y estado actual</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-background">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">Nómina Normal</p>
+                      <p className="text-sm text-muted-foreground">Sin descuentos activos</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-100 text-green-800">Activo</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>Cuando tengas préstamos activos, se mostrarán aquí los descuentos automáticos aplicados a tu nómina quincenal.</p>
                 </div>
               </div>
             </CardContent>

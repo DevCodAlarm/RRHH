@@ -24,6 +24,8 @@ export interface Employee {
   emergencyPhone?: string
   bankAccount?: string
   bankName?: string
+  profileImage?: string // Base64 o blob URL de imagen de perfil
+  isAbnormalPayroll?: boolean // Flag si hay descuentos activos
 }
 
 export interface HRRequest {
@@ -40,6 +42,11 @@ export interface HRRequest {
   amount?: number
   createdAt: string
   avatar: string
+  // Campos para préstamos avanzados
+  interestRate?: number // Porcentaje de interés (configurado por admin)
+  approvedAmount?: number // Monto aprobado por admin
+  discountInstallments?: number // Número de cuotas para descuentos
+  requestedInstallments?: number // Cuotas solicitadas por empleado
 }
 
 export interface HRLoanPayment {
@@ -64,6 +71,10 @@ export interface HRLoan {
   startDate: string
   avatar: string
   payments?: HRLoanPayment[]
+  // Campos nuevos para sistema avanzado
+  isProcessedInPayroll?: boolean // Si fue aprobado e integrado al sistema de nómina
+  paidInstallments?: number // Cuotas pagadas
+  discountPerPaycheck?: number // Monto a descontar cada quincena
 }
 
 export interface ActivityLog {

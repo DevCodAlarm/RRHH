@@ -6,7 +6,15 @@
    - Inputs empleados: "nomina_empleados"
    - Periodo actual + resultado: "nomina_periodo_actual"
    - Historial periodos procesados: "nomina_periodos"
+   
+   INTEGRACIÓN AVANZADA:
+   - Préstamos: Descuentos automáticos por quincena
+   - Adelantos: Reducción de salario neto
+   - Auditoría: Registro de cambios en descuentos
 ========================================================= */
+
+import { getPendingDeductionsForEmployee, markInstallmentAsPaid } from "./loan-management"
+import { logAction } from "./audit-log"
 
 export const NOMINA_LS_KEYS = {
   CONFIG: "config_nomina_v2",
@@ -449,11 +457,70 @@ function calcularNominaEmpleado(emp: EmpleadoInput, config: NominaConfig): Nomin
   }
 }
 
-export function calcularNominaQuincenal(empleadosInput: EmpleadoInput[]): NominaResultado {
+/**
+ * Obtiene descuentos por préstamos activos para un empleado en una quincena específica
+ */
+export function getPayrollDeductionsForEmployee(
+  employeeId: string,
+  payrollPeriod: 1 | 2
+): {
+  totalDeductions: number
+  loanDeductions: Array<{ loanId: string; amount: number }>
+} {
+  try {
+    const { amount, plans } = getPendingDeductionsForEmployee(employeeId, payrollPeriod)
+    const loanDeductions = plans.map(plan => ({
+      loanId: plan.loanId,
+      amount: plan.discountPerPaycheck,
+    }))
+    return { totalDeductions: amount, loanDeductions }
+  } catch {
+    return { totalDeductions: 0, loanDeductions: [] }
+  }
+}
+
+/**
+ * Marca si una nómina tiene estado "abnormal" por descuentos de préstamos
+ */
+export function checkPayrollAbnormalStatus(
+  employeeId: string,
+  payrollPeriod: 1 | 2
+): boolean {
+  const { totalDeductions } = getPayrollDeductionsForEmployee(employeeId, payrollPeriod)
+  return totalDeductions > 0
+}
+
+/**
+ * Procesa descuentos de préstamos después de que se calcula la nómina
+ */
+export function applyLoanDeductionsToPayroll(
+  nominaResult: NominaEmpleadoResult,
+  payrollPeriod: 1 | 2
+): NominaEmpleadoResult & { loanDeductionsApplied: number; isAbnormalPayroll: boolean } {
+  const { totalDeductions, loanDeductions } = getPayrollDeductionsForEmployee(nominaResult.id, payrollPeriod)
+  
+  // No permitir que el descuento sea mayor que el neto
+  const actualDeduction = Math.min(totalDeductions, nominaResult.neto)
+  
+  return {
+    ...nominaResult,
+    otrosDescuentos: round2(nominaResult.otrosDescuentos + actualDeduction),
+    totalDescuentos: round2(nominaResult.totalDescuentos + actualDeduction),
+    neto: round2(Math.max(0, nominaResult.neto - actualDeduction)),
+    loanDeductionsApplied: round2(actualDeduction),
+    isAbnormalPayroll: actualDeduction > 0,
+  }
+}
+
+export function calcularNominaQuincenal(empleadosInput: EmpleadoInput[], payrollPeriod: 1 | 2 = 1): NominaResultado {
   const config = getConfigNomina()
   if (!Array.isArray(empleadosInput)) throw new Error("empleados debe ser un array.")
 
-  const empleados = empleadosInput.map((emp) => calcularNominaEmpleado(emp, config))
+  const empleados = empleadosInput.map((emp) => {
+    const base = calcularNominaEmpleado(emp, config)
+    // Aplicar descuentos de préstamos si existen
+    return applyLoanDeductionsToPayroll(base, payrollPeriod)
+  })
 
   const resumenRaw = empleados.reduce(
     (acc, e) => {

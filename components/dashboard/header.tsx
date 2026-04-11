@@ -37,6 +37,7 @@ import { useAuth, roleDescriptions } from "@/lib/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { useActivityLog } from "@/hooks/use-activity-log"
+import Image from "next/image"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -92,6 +93,18 @@ export function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
+
+          {/* Logo */}
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+            <Image 
+              src="/hr-logo.png" 
+              alt="HRFlow Pro" 
+              width={32} 
+              height={32}
+              className="h-8 w-8"
+            />
+            <span className="hidden md:inline text-sm font-semibold text-foreground">HRFlow Pro</span>
+          </Link>
 
           {/* Search */}
           <div className="hidden md:flex relative">
