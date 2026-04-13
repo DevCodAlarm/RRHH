@@ -474,7 +474,13 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           remainingBiweekly: 0,
           deductionSchedule: {},
         }
-        setLoans((prev) => [newLoan, ...prev])
+        setLoans((prev) => {
+          const updated = [newLoan, ...prev]
+          // Guardar inmediatamente a localStorage
+          console.log("[v0] addLoan - Guardando préstamo:", newLoan.id, "Total loans:", updated.length)
+          localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
+          return updated
+        })
         // Dispara evento para sincronizar otras pestañas/ventanas
         window.dispatchEvent(new Event("storage_sync"))
       },
@@ -532,6 +538,9 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               deductionSchedule,
             }
           })
+          // Guardar inmediatamente a localStorage
+          console.log("[v0] approveLoan - Guardando préstamo aprobado")
+          localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
           return updated
         })
       },
@@ -561,6 +570,9 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               })
             }
           }
+          // Guardar inmediatamente a localStorage
+          console.log("[v0] updateLoanStatus - Guardando estado de préstamo")
+          localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
           return updated
         })
       },
