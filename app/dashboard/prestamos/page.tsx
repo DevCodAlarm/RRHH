@@ -26,7 +26,6 @@ export default function LoansPage() {
   const [reason, setReason] = useState("")
   const [showDialog, setShowDialog] = useState(false)
 
-  const currentEmployee = employees.find((e) => e.id === currentUser?.id)
   const userLoans = useMemo(() => loans.filter((l) => l.employeeId === currentUser?.id), [loans, currentUser?.id])
 
   const pendingLoans = userLoans.filter((l) => l.status === "pending")
@@ -36,14 +35,15 @@ export default function LoansPage() {
   const rejectedLoans = userLoans.filter((l) => l.status === "rejected")
 
   const handleSubmit = () => {
-    if (!amount || !currentEmployee) return
+    if (!amount || !currentUser) return
 
-    console.log("[v0] Loan request - Employee:", currentEmployee.name, "Amount:", amount)
+    console.log("[v0] Loan request - CurrentUser:", currentUser.id, currentUser.name, "Amount:", amount)
+    console.log("[v0] Available employees:", employees.map(e => ({ id: e.id, name: e.name })))
     
     addLoan({
-      employeeId: currentEmployee.id,
-      employeeName: currentEmployee.name,
-      department: currentEmployee.department,
+      employeeId: currentUser.id,
+      employeeName: currentUser.name,
+      department: currentUser.department || "General",
       requestedAmount: parseFloat(amount),
       interestRate: 0,
       biweeklyInstallments: 0,
@@ -51,7 +51,7 @@ export default function LoansPage() {
       biweeklyPayment: 0,
       remainingBiweekly: 0,
       deductionSchedule: {},
-      avatar: currentEmployee.avatar || "",
+      avatar: currentUser.avatar || "",
     })
     
     console.log("[v0] Loan added successfully")
