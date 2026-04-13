@@ -296,29 +296,32 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       setLoans(currentLoans)
       setRequests(currentReqs)
+    } catch (e) {
+      console.error("Error loading data from localStorage", e)
     }
+  }
 
-    useEffect(() => {
+  useEffect(() => {
+    loadData()
+
+    const handleSync = () => {
       loadData()
+    }
+    window.addEventListener("storage", handleSync)
+    window.addEventListener("storage_sync", handleSync)
 
-      const handleSync = () => {
-        loadData()
-      }
-      window.addEventListener("storage", handleSync)
-      window.addEventListener("storage_sync", handleSync)
+    return () => {
+      window.removeEventListener("storage", handleSync)
+      window.removeEventListener("storage_sync", handleSync)
+    }
+  }, [])
 
-      return () => {
-        window.removeEventListener("storage", handleSync)
-        window.removeEventListener("storage_sync", handleSync)
-      }
-    }, [])
-
-    useEffect(() => {
-      if (!loaded) return
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
-      localStorage.setItem(REQS_KEY, JSON.stringify(requests))
-      localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
-      localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities))
+  useEffect(() => {
+    if (!loaded) return
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
+    localStorage.setItem(REQS_KEY, JSON.stringify(requests))
+    localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities))
     localStorage.setItem(GOALS_KEY, JSON.stringify(goals))
     localStorage.setItem(REVIEWS_KEY, JSON.stringify(reviews))
   }, [employees, requests, loans, activities, goals, reviews, loaded])
