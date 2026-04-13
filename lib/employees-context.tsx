@@ -290,74 +290,35 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       const storedLoans = localStorage.getItem(LOANS_KEY)
       const currentLoans: HRLoan[] = storedLoans ? JSON.parse(storedLoans) : []
-      console.log("[v0] loadData - Loans from localStorage:", currentLoans.length, "loans:", currentLoans)
 
       const storedReqs = localStorage.getItem(REQS_KEY)
       const currentReqs: HRRequest[] = storedReqs ? JSON.parse(storedReqs) : []
 
-      setRequests(currentReqs)
       setLoans(currentLoans)
-
-      // Sincronizar todos con Nómina, incluyendo préstamos y adelantos activos
-      currentEmps.forEach((emp) => {
-        const empLoans = currentLoans.filter(
-          (l) => l.employeeId === emp.id && l.status === "active"
-        )
-        const totalLoanCuota = empLoans.reduce((acc, l) => acc + l.biweeklyPayment, 0)
-
-        const empAdvances = currentReqs.filter(
-          (r) => r.employeeId === emp.id && r.type === "payroll_advance" && r.status === "approved"
-        )
-        const totalAdvances = empAdvances.reduce((acc, r) => acc + (r.amount || 0), 0)
-
-        syncEmpleadoDesdeContexto({
-          id: emp.id,
-          name: emp.name,
-          salary: emp.salary,
-          prestamos: totalLoanCuota,
-          anticipos: totalAdvances,
-        })
-      })
-
-      const storedActs = localStorage.getItem(ACTIVITY_KEY)
-      setActivities(storedActs ? JSON.parse(storedActs) : [])
-
-      const storedGoals = localStorage.getItem(GOALS_KEY)
-      setGoals(storedGoals ? JSON.parse(storedGoals) : [])
-
-      const storedReviews = localStorage.getItem(REVIEWS_KEY)
-      setReviews(storedReviews ? JSON.parse(storedReviews) : [])
-    } catch {
-      setEmployees(INITIAL_EMPLOYEES)
-    } finally {
-      setLoaded(true)
+      setRequests(currentReqs)
     }
-  }
 
-  useEffect(() => {
-    console.log("[v0] Provider mounted - Loading initial data")
-    loadData()
-
-    const handleSync = () => {
-      console.log("[v0] Storage sync event fired - Reloading data")
+    useEffect(() => {
       loadData()
-    }
-    window.addEventListener("storage", handleSync)
-    window.addEventListener("storage_sync", handleSync)
 
-    return () => {
-      window.removeEventListener("storage", handleSync)
-      window.removeEventListener("storage_sync", handleSync)
-    }
-  }, [])
+      const handleSync = () => {
+        loadData()
+      }
+      window.addEventListener("storage", handleSync)
+      window.addEventListener("storage_sync", handleSync)
 
-  useEffect(() => {
-    if (!loaded) return
-    console.log("[v0] Saving to localStorage - loans count:", loans.length, "loans:", loans)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
-    localStorage.setItem(REQS_KEY, JSON.stringify(requests))
-    localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
-    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities))
+      return () => {
+        window.removeEventListener("storage", handleSync)
+        window.removeEventListener("storage_sync", handleSync)
+      }
+    }, [])
+
+    useEffect(() => {
+      if (!loaded) return
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
+      localStorage.setItem(REQS_KEY, JSON.stringify(requests))
+      localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
+      localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities))
     localStorage.setItem(GOALS_KEY, JSON.stringify(goals))
     localStorage.setItem(REVIEWS_KEY, JSON.stringify(reviews))
   }, [employees, requests, loans, activities, goals, reviews, loaded])
@@ -477,10 +438,8 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
         setLoans((prev) => {
           const updated = [newLoan, ...prev]
           // Guardar inmediatamente a localStorage
-          console.log("[v0] addLoan - Guardando préstamo:", newLoan.id, "Total loans:", updated.length)
           if (typeof window !== 'undefined' && window.localStorage) {
             localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
-            console.log("[v0] addLoan - Verificando localStorage:", localStorage.getItem(LOANS_KEY)?.length)
           }
           return updated
         })
@@ -540,7 +499,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
             }
           })
           // Guardar inmediatamente a localStorage
-          console.log("[v0] approveLoan - Guardando préstamo aprobado")
           if (typeof window !== 'undefined' && window.localStorage) {
             localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
           }
@@ -574,7 +532,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
             }
           }
           // Guardar inmediatamente a localStorage
-          console.log("[v0] updateLoanStatus - Guardando estado de préstamo")
           if (typeof window !== 'undefined' && window.localStorage) {
             localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
           }

@@ -84,6 +84,13 @@ const navigation: NavItemType[] = [
 
 const bottomNavigation: NavItemType[] = [
   {
+    name: "Administracion", icon: Shield,
+    permission: "roles",
+    children: [
+      { name: "Aprobación de Préstamos", href: "/dashboard/admin/prestamos-solicitudes", icon: CreditCard, permission: "prestamos" },
+    ],
+  },
+  {
     name: "Configuracion", icon: Settings,
     children: [
       { name: "General", href: "/dashboard/configuracion", icon: Settings, permission: "configuracion" },

@@ -33,7 +33,7 @@ import {
   Briefcase
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { useAuth, roleDescriptions } from "@/lib/auth-context"
+import { useAuth, roleDescriptions, SEED_USERS } from "@/lib/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { useActivityLog } from "@/hooks/use-activity-log"
@@ -44,7 +44,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter()
-  const { user, logout, hasPermission } = useAuth()
+  const { user, logout, login, hasPermission } = useAuth()
   const [isDark, setIsDark] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { activities, unreadCount, markAllRead, clear } = useActivityLog(user?.id)
@@ -52,6 +52,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   const handleLogout = () => {
     logout()
     router.push("/")
+  }
+
+  const handleSwitchUser = (email: string, password: string) => {
+    login(email, password)
+    router.refresh()
   }
 
   const toggleTheme = () => {
@@ -242,6 +247,21 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </Link>
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs font-semibold">Cambiar Usuario</DropdownMenuLabel>
+              {SEED_USERS.map((seedUser) => (
+                <DropdownMenuItem
+                  key={seedUser.id}
+                  onClick={() => handleSwitchUser(seedUser.email, seedUser.password)}
+                  className={user?.id === seedUser.id ? "bg-accent" : ""}
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <div className="flex flex-col gap-0">
+                    <span className="text-sm">{seedUser.name}</span>
+                    <span className="text-xs text-muted-foreground">{roleDescriptions[seedUser.role].name}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
