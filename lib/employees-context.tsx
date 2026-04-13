@@ -285,19 +285,27 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   const loadData = () => {
     try {
       const storedEmps = localStorage.getItem(STORAGE_KEY)
-      const currentEmps: Employee[] = storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES
-      setEmployees(currentEmps)
+      setEmployees(storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES)
 
       const storedLoans = localStorage.getItem(LOANS_KEY)
-      const currentLoans: HRLoan[] = storedLoans ? JSON.parse(storedLoans) : []
+      setLoans(storedLoans ? JSON.parse(storedLoans) : [])
 
       const storedReqs = localStorage.getItem(REQS_KEY)
-      const currentReqs: HRRequest[] = storedReqs ? JSON.parse(storedReqs) : []
+      setRequests(storedReqs ? JSON.parse(storedReqs) : [])
 
-      setLoans(currentLoans)
-      setRequests(currentReqs)
+      const storedActivities = localStorage.getItem(ACTIVITY_KEY)
+      setActivities(storedActivities ? JSON.parse(storedActivities) : [])
+
+      const storedGoals = localStorage.getItem(GOALS_KEY)
+      setGoals(storedGoals ? JSON.parse(storedGoals) : [])
+
+      const storedReviews = localStorage.getItem(REVIEWS_KEY)
+      setReviews(storedReviews ? JSON.parse(storedReviews) : [])
+
+      setLoaded(true)
     } catch (e) {
       console.error("Error loading data from localStorage", e)
+      setLoaded(true)
     }
   }
 
