@@ -469,6 +469,8 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           deductionSchedule: {},
         }
         setLoans((prev) => [newLoan, ...prev])
+        // Dispara evento para sincronizar otras pestañas/ventanas
+        window.dispatchEvent(new Event("storage_sync"))
       },
 
       approveLoan: (loanId, interestRate: number, biweeklyInstallments: number) => {

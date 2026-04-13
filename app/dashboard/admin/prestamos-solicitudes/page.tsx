@@ -33,6 +33,8 @@ export default function LoanApprovalsPage() {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [showRejectionDialog, setShowRejectionDialog] = useState(false)
 
+  console.log("[v0] Admin page loaded - Total loans:", loans.length, "Loans data:", loans)
+
   const pendingLoans = useMemo(() => loans.filter((l) => l.status === "pending"), [loans])
   const approvedLoans = useMemo(() => loans.filter((l) => l.status === "approved"), [loans])
   const activeLoans = useMemo(() => loans.filter((l) => l.status === "active"), [loans])

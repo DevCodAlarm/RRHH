@@ -38,6 +38,8 @@ export default function LoansPage() {
   const handleSubmit = () => {
     if (!amount || !currentEmployee) return
 
+    console.log("[v0] Loan request - Employee:", currentEmployee.name, "Amount:", amount)
+    
     addLoan({
       employeeId: currentEmployee.id,
       employeeName: currentEmployee.name,
@@ -51,6 +53,8 @@ export default function LoansPage() {
       deductionSchedule: {},
       avatar: currentEmployee.avatar || "",
     })
+    
+    console.log("[v0] Loan added successfully")
 
     setAmount("")
     setReason("")
