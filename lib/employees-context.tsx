@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { syncEmpleadoDesdeContexto } from "./nomina"
 import { logActivity as logGlobalActivity } from "./activity-log"
 
@@ -282,25 +282,21 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   const [reviews, setReviews] = useState<PerformanceReview[]>([])
   const [loaded, setLoaded] = useState(false)
 
+  // Carga inicial — lee todo de localStorage en un solo batch
   useEffect(() => {
-    // Carga inicial de todos los datos desde localStorage
     try {
       const storedEmps = localStorage.getItem(STORAGE_KEY)
-      setEmployees(storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES)
-
       const storedLoans = localStorage.getItem(LOANS_KEY)
-      setLoans(storedLoans ? JSON.parse(storedLoans) : [])
-
       const storedReqs = localStorage.getItem(REQS_KEY)
-      setRequests(storedReqs ? JSON.parse(storedReqs) : [])
-
       const storedActivities = localStorage.getItem(ACTIVITY_KEY)
-      setActivities(storedActivities ? JSON.parse(storedActivities) : [])
-
       const storedGoals = localStorage.getItem(GOALS_KEY)
-      setGoals(storedGoals ? JSON.parse(storedGoals) : [])
-
       const storedReviews = localStorage.getItem(REVIEWS_KEY)
+
+      setEmployees(storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES)
+      setLoans(storedLoans ? JSON.parse(storedLoans) : [])
+      setRequests(storedReqs ? JSON.parse(storedReqs) : [])
+      setActivities(storedActivities ? JSON.parse(storedActivities) : [])
+      setGoals(storedGoals ? JSON.parse(storedGoals) : [])
       setReviews(storedReviews ? JSON.parse(storedReviews) : [])
     } catch (e) {
       console.error("Error loading data from localStorage", e)
@@ -309,36 +305,21 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Guardar cambios en localStorage SOLO después de la carga inicial
+  // Guardar en localStorage — usa ref para evitar guardar en el primer render
+  const isFirstSave = useRef(true)
   useEffect(() => {
     if (!loaded) return
+    if (isFirstSave.current) {
+      isFirstSave.current = false
+      return
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
-  }, [employees, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
     localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
-  }, [loans, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
     localStorage.setItem(REQS_KEY, JSON.stringify(requests))
-  }, [requests, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
     localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities))
-  }, [activities, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
     localStorage.setItem(GOALS_KEY, JSON.stringify(goals))
-  }, [goals, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
     localStorage.setItem(REVIEWS_KEY, JSON.stringify(reviews))
-  }, [reviews, loaded])
+  }, [employees, loans, requests, activities, goals, reviews, loaded])
 
   const value = useMemo<EmployeesContextType>(
     () => ({
