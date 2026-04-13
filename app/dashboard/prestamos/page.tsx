@@ -362,21 +362,19 @@ export default function LoansPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Solicitud de Préstamo</AlertDialogTitle>
-            <AlertDialogDescription>
-              {amount && (
-                <div className="space-y-3 mt-4">
-                  <div className="bg-blue-50 p-3 rounded">
-                    <div className="text-sm text-gray-600">Monto Solicitado</div>
-                    <div className="text-2xl font-bold text-blue-600">RD$ {parseFloat(amount).toLocaleString()}</div>
-                  </div>
-                  <p className="text-sm text-gray-700">
-                    Tu solicitud será revisada por el administrador, quien decidirá la tasa de interés y el número de
-                    quincenas para el descuento.
-                  </p>
-                </div>
-              )}
-            </AlertDialogDescription>
           </AlertDialogHeader>
+          {amount && (
+            <div className="space-y-3">
+              <div className="bg-blue-50 p-3 rounded">
+                <div className="text-sm text-gray-600">Monto Solicitado</div>
+                <div className="text-2xl font-bold text-blue-600">RD$ {parseFloat(amount).toLocaleString()}</div>
+              </div>
+              <p className="text-sm text-gray-700">
+                Tu solicitud será revisada por el administrador, quien decidirá la tasa de interés y el número de
+                quincenas para el descuento.
+              </p>
+            </div>
+          )}
           <div className="flex gap-3">
             <AlertDialogCancel className="flex-1">Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700">
