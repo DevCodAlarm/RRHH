@@ -272,90 +272,74 @@ export default function LoanApprovalsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Aprobar Préstamo</AlertDialogTitle>
             <AlertDialogDescription>
-              {currentLoan && (
-                <div className="space-y-4 mt-4">
-                  <div>
-                    <div className="font-semibold text-gray-900">{currentLoan.employeeName}</div>
-                    <div className="text-sm text-gray-600">
-                      Solicita: RD$ {currentLoan.requestedAmount?.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Tasa de Interés (%)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={interestRate}
-                      onChange={(e) => setInterestRate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Número de Quincenas para Descontar</Label>
-                    <Select value={biweeklyInstallments} onValueChange={setBiweeklyInstallments}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 quincena</SelectItem>
-                        <SelectItem value="2">2 quincenas</SelectItem>
-                        <SelectItem value="3">3 quincenas</SelectItem>
-                        <SelectItem value="4">4 quincenas</SelectItem>
-                        <SelectItem value="6">6 quincenas (3 meses)</SelectItem>
-                        <SelectItem value="8">8 quincenas (4 meses)</SelectItem>
-                        <SelectItem value="12">12 quincenas (6 meses)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {currentLoan && interestRate && biweeklyInstallments && (
-                    <div className="bg-gray-100 p-3 rounded">
-                      <div className="text-xs space-y-1">
-                        <div className="flex justify-between">
-                          <span>Monto Original:</span>
-                          <span className="font-semibold">
-                            RD$ {currentLoan.requestedAmount?.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Interés ({interestRate}%):</span>
-                          <span className="font-semibold text-red-600">
-                            RD${" "}
-                            {Math.round(
-                              (currentLoan.requestedAmount || 0) * (parseFloat(interestRate) / 100)
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="border-t pt-1 mt-1 flex justify-between">
-                          <span>Total a Descontar:</span>
-                          <span className="font-bold">
-                            RD${" "}
-                            {Math.round(
-                              (currentLoan.requestedAmount || 0) * (1 + parseFloat(interestRate) / 100)
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-blue-600 font-semibold">
-                          <span>Cuota Quincenal:</span>
-                          <span>
-                            RD${" "}
-                            {Math.round(
-                              ((currentLoan.requestedAmount || 0) *
-                                (1 + parseFloat(interestRate) / 100)) /
-                                parseInt(biweeklyInstallments)
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              Configura las condiciones del préstamo antes de aprobarlo.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {currentLoan && (
+            <div className="space-y-4">
+              <div className="bg-muted p-3 rounded">
+                <div className="font-semibold">{currentLoan.employeeName}</div>
+                <div className="text-sm text-muted-foreground">
+                  Solicita: RD$ {currentLoan.requestedAmount?.toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <Label>Tasa de Interés (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label>Número de Quincenas para Descontar</Label>
+                <Select value={biweeklyInstallments} onValueChange={setBiweeklyInstallments}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 quincena</SelectItem>
+                    <SelectItem value="2">2 quincenas</SelectItem>
+                    <SelectItem value="3">3 quincenas</SelectItem>
+                    <SelectItem value="4">4 quincenas</SelectItem>
+                    <SelectItem value="6">6 quincenas (3 meses)</SelectItem>
+                    <SelectItem value="8">8 quincenas (4 meses)</SelectItem>
+                    <SelectItem value="12">12 quincenas (6 meses)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="bg-muted p-3 rounded text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Monto Original:</span>
+                  <span className="font-semibold">RD$ {currentLoan.requestedAmount?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Interés ({interestRate}%):</span>
+                  <span className="font-semibold text-destructive">
+                    RD$ {Math.round((currentLoan.requestedAmount || 0) * (parseFloat(interestRate) / 100)).toLocaleString()}
+                  </span>
+                </div>
+                <div className="border-t pt-1 mt-1 flex justify-between">
+                  <span>Total a Descontar:</span>
+                  <span className="font-bold">
+                    RD$ {Math.round((currentLoan.requestedAmount || 0) * (1 + parseFloat(interestRate) / 100)).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-blue-600 font-semibold">
+                  <span>Cuota Quincenal:</span>
+                  <span>
+                    RD$ {Math.round(((currentLoan.requestedAmount || 0) * (1 + parseFloat(interestRate) / 100)) / parseInt(biweeklyInstallments)).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex gap-3">
             <AlertDialogCancel className="flex-1">Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleApprove} className="flex-1 bg-green-600 hover:bg-green-700">

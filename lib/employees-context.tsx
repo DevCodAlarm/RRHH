@@ -282,7 +282,8 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   const [reviews, setReviews] = useState<PerformanceReview[]>([])
   const [loaded, setLoaded] = useState(false)
 
-  const loadData = () => {
+  useEffect(() => {
+    // Carga inicial de todos los datos desde localStorage
     try {
       const storedEmps = localStorage.getItem(STORAGE_KEY)
       setEmployees(storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES)
@@ -301,38 +302,43 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       const storedReviews = localStorage.getItem(REVIEWS_KEY)
       setReviews(storedReviews ? JSON.parse(storedReviews) : [])
-
-      setLoaded(true)
     } catch (e) {
       console.error("Error loading data from localStorage", e)
+    } finally {
       setLoaded(true)
-    }
-  }
-
-  useEffect(() => {
-    loadData()
-
-    const handleSync = () => {
-      loadData()
-    }
-    window.addEventListener("storage", handleSync)
-    window.addEventListener("storage_sync", handleSync)
-
-    return () => {
-      window.removeEventListener("storage", handleSync)
-      window.removeEventListener("storage_sync", handleSync)
     }
   }, [])
 
+  // Guardar cambios en localStorage SOLO después de la carga inicial
   useEffect(() => {
     if (!loaded) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
-    localStorage.setItem(REQS_KEY, JSON.stringify(requests))
+  }, [employees, loaded])
+
+  useEffect(() => {
+    if (!loaded) return
     localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
+  }, [loans, loaded])
+
+  useEffect(() => {
+    if (!loaded) return
+    localStorage.setItem(REQS_KEY, JSON.stringify(requests))
+  }, [requests, loaded])
+
+  useEffect(() => {
+    if (!loaded) return
     localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities))
+  }, [activities, loaded])
+
+  useEffect(() => {
+    if (!loaded) return
     localStorage.setItem(GOALS_KEY, JSON.stringify(goals))
+  }, [goals, loaded])
+
+  useEffect(() => {
+    if (!loaded) return
     localStorage.setItem(REVIEWS_KEY, JSON.stringify(reviews))
-  }, [employees, requests, loans, activities, goals, reviews, loaded])
+  }, [reviews, loaded])
 
   const value = useMemo<EmployeesContextType>(
     () => ({
@@ -446,14 +452,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           remainingBiweekly: 0,
           deductionSchedule: {},
         }
-        setLoans((prev) => {
-          const updated = [newLoan, ...prev]
-          // Guardar inmediatamente a localStorage
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
-          }
-          return updated
-        })
+        setLoans((prev) => [newLoan, ...prev])
       },
 
       approveLoan: (loanId, interestRate: number, biweeklyInstallments: number) => {
@@ -509,10 +508,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               deductionSchedule,
             }
           })
-          // Guardar inmediatamente a localStorage
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
-          }
           return updated
         })
       },
@@ -542,10 +537,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               })
             }
           }
-          // Guardar inmediatamente a localStorage
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
-          }
           return updated
         })
       },
@@ -569,9 +560,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               payments: [...(loan.payments || []), payment],
             }
           })
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
-          }
           return updated
         })
       },
@@ -605,9 +593,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               payments: [...(loan.payments || []), payment],
             }
           })
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
-          }
           return updated
         })
 
@@ -624,9 +609,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
             }
             return req
           })
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(REQS_KEY, JSON.stringify(updated))
-          }
           return updated
         })
       },
