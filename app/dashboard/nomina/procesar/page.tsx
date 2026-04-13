@@ -75,19 +75,20 @@ export default function ProcesarPage() {
 
   // Sincronizar préstamos y adelantos activos a la nómina antes de calcular
   useEffect(() => {
-    if (!employeeDirectory.length) return
+    if (!employeeDirectory.length || !periodo) return
 
     employeeDirectory.forEach((emp) => {
       const empLoans = loans.filter(
-        (l) => l.employeeId === emp.id && (l.status === "active" || l.status === "approved")
+        (l) => l.employeeId === emp.id && l.status === "active"
       )
+      // Obtener el descuento para el período actual
       const totalLoanCuota = empLoans.reduce(
-        (acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2),
+        (acc, l) => acc + (l.deductionSchedule?.[periodo.name] || 0),
         0
       )
 
       const empAdvances = requests.filter(
-        (r) => r.employeeId === emp.id && r.type === "payroll_advance" && r.status === "approved"
+        (r) => r.employeeId === emp.id && r.type === "payroll_advance" && r.status === "approved" && r.targetPeriod === periodo.name
       )
       const totalAdvances = empAdvances.reduce((acc, r) => acc + (r.amount || 0), 0)
 
@@ -101,7 +102,7 @@ export default function ProcesarPage() {
     })
 
     recalcularNominaActual({ reason: "procesar_page_sync" })
-  }, [employeeDirectory, loans, requests])
+  }, [employeeDirectory, loans, requests, periodo])
 
   const periodo = useMemo(() => {
     const p = nominaState?.periodo
@@ -142,13 +143,13 @@ export default function ProcesarPage() {
 
     const empResult = empleadosCalculados.find((e) => e.id === employee?.id)
     const empLoans = loans.filter(
-      (l) => l.employeeId === employee?.id && (l.status === "active" || l.status === "approved")
+      (l) => l.employeeId === employee?.id && l.status === "active"
     )
     const empAdvances = requests.filter(
-      (r) => r.employeeId === employee?.id && r.type === "payroll_advance" && r.status === "approved"
+      (r) => r.employeeId === employee?.id && r.type === "payroll_advance" && r.status === "approved" && r.targetPeriod === periodo?.name
     )
     const totalAdvances = empAdvances.reduce((acc, r) => acc + (r.amount || 0), 0)
-    const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+    const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.deductionSchedule?.[periodo?.name || ""] || 0), 0)
 
     return (
       <div className="space-y-6">
@@ -221,34 +222,37 @@ export default function ProcesarPage() {
                 </div>
 
                 {/* Préstamos activos del empleado */}
-                {empLoans.length > 0 && (
+                {empLoans.length > 0 && totalLoanCuota > 0 && (
                   <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                       <Info className="h-4 w-4 text-primary" />
-                      Descuentos por Préstamos Activos
+                      Descuentos por Préstamos Activos (Esta Quincena)
                     </div>
-                    {empLoans.map((l) => (
-                      <div key={l.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Cuota quincenal — Saldo: RD$ {l.balance.toLocaleString()}
-                        </span>
-                        <span className="font-medium text-foreground">
-                          -RD$ {(l.biweeklyPayment ?? l.monthlyPayment / 2).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
+                    {empLoans.map((l) => {
+                      const descuento = l.deductionSchedule?.[periodo?.name || ""] || 0
+                      return (
+                        <div key={l.id} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Descuento — Saldo pendiente: RD$ {l.balance.toLocaleString()}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            -RD$ {descuento.toLocaleString()}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
-                {empAdvances.length > 0 && (
+                {empAdvances.length > 0 && totalAdvances > 0 && (
                   <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-accent">
                       <CheckCircle2 className="h-4 w-4" />
-                      Adelantos aprobados (se descontarán esta quincena)
+                      Adelanto de nómina (se descontará esta quincena)
                     </div>
                     {empAdvances.map((r) => (
                       <div key={r.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{r.title}</span>
+                        <span className="text-muted-foreground">Adelanto aprobado</span>
                         <span className="font-medium text-foreground">
                           -RD$ {(r.amount || 0).toLocaleString()}
                         </span>
@@ -298,19 +302,11 @@ export default function ProcesarPage() {
             const record = procesarNominaPeriodoActual({ selectedEmployees: idsToProcess })
             const periodoKey = record?.periodo?.key
 
-            // Liquidar descuentos: cuotas de préstamos y adelantos aprobados
+            // Liquidar descuentos: aplicar el descuento del préstamo y marcar adelantos como procesados
             idsToProcess.forEach((empId) => {
-              const result = empleadosCalculados.find((e) => e.id === empId)
-              if (!result) return
-
-              settlePayrollDeductions(
-                empId,
-                {
-                  loan: result.descuentosDetalle.prestamos,
-                  advance: result.descuentosDetalle.anticipos,
-                },
-                periodoKey
-              )
+              if (periodoKey) {
+                settlePayrollDeductions(empId, periodoKey)
+              }
             })
 
             // Re-sincronizar nómina con saldos actualizados
@@ -322,17 +318,19 @@ export default function ProcesarPage() {
               employeeDirectory.forEach((emp) => {
                 const empLoans = updatedLoans.filter(
                   (l: any) =>
-                    l.employeeId === emp.id && (l.status === "active" || l.status === "approved")
+                    l.employeeId === emp.id && l.status === "active"
                 )
+                // Obtener el descuento para la quincena actual
                 const totalLoanCuota = empLoans.reduce(
-                  (acc: number, l: any) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2),
+                  (acc: number, l: any) => acc + (l.deductionSchedule?.[periodoKey] || 0),
                   0
                 )
                 const empAdvances = updatedReqs.filter(
                   (r: any) =>
                     r.employeeId === emp.id &&
                     r.type === "payroll_advance" &&
-                    r.status === "approved"
+                    r.status === "approved" &&
+                    r.targetPeriod === periodoKey
                 )
                 const totalAdvances = empAdvances.reduce(
                   (acc: number, r: any) => acc + (r.amount || 0),

@@ -57,28 +57,28 @@ export interface HRLoan {
   employeeId: string
   employeeName: string
   department: string
-  amount: number
-  /** Balance pendiente (deuda restante) */
+  /** Monto solicitado originalmente */
+  requestedAmount: number
+  /** Balance pendiente de pagar */
   balance: number
-  /** Cuota quincenal a descontar */
-  biweeklyPayment: number
-  /** Cuota mensual (referencia) */
-  monthlyPayment: number
+  /** Tasa de interés configurada por admin (%) */
   interestRate: number
-  /** Plazo en quincenas */
-  termBiweekly: number
-  /** Plazo original en meses (referencia) */
-  term: number
-  /** Quincenas restantes */
-  remainingTerm: number
-  status: "active" | "completed" | "pending" | "approved"
-  startDate: string
+  /** Número de quincenas para descontar (configurado por admin) */
+  biweeklyInstallments: number
+  /** Cuota quincenal a descontar (calculada automáticamente) */
+  biweeklyPayment: number
+  /** Quincenas restantes por descontar */
+  remainingBiweekly: number
+  /** Detalles de descuentos programados por quincena */
+  deductionSchedule: {
+    [periodoKey: string]: number // periodoKey (2025-04-Q1) => monto a descontar
+  }
+  status: "pending" | "approved" | "active" | "completed"
+  requestedAt: string
+  approvedAt?: string
+  startDate?: string
   avatar: string
   payments?: HRLoanPayment[]
-  /** Cuántas quincenas debe descontarse (si es null = hasta saldarlo, distribuido en cuotas) */
-  installments?: number | null
-  /** Cuántas quincenas por cuota se configuraron */
-  installmentCount?: number
 }
 
 export interface ActivityLog {
@@ -136,7 +136,8 @@ interface EmployeesContextType {
   addRequest: (request: Omit<HRRequest, "id" | "createdAt" | "status">) => void
   updateRequestStatus: (id: string, status: HRRequest["status"]) => void
   // Prestamos
-  addLoan: (loan: Omit<HRLoan, "id" | "balance" | "remainingTerm">) => void
+  addLoan: (loan: Omit<HRLoan, "id" | "status" | "requestedAt" | "balance" | "biweeklyPayment" | "remainingBiweekly" | "deductionSchedule">) => void
+  approveLoan: (loanId: string, interestRate: number, biweeklyInstallments: number) => void
   updateLoanStatus: (id: string, status: HRLoan["status"]) => void
   payLoanManual: (loanId: string, amount: number) => void
   // Actividad
@@ -148,14 +149,16 @@ interface EmployeesContextType {
   updateGoalProgress: (id: string, progress: number) => void
   addReview: (review: Omit<PerformanceReview, "id" | "date" | "score">) => void
   /**
-   * Liquidar descuentos de nómina: descuenta la cuota del préstamo del balance
-   * y marca el adelanto como procesado.
+   * Liquidar descuentos de nómina: aplica el descuento programado del préstamo
+   * y marca los adelantos de esa quincena como procesados.
    */
-  settlePayrollDeductions: (employeeId: string, amounts: { loan: number; advance: number }, periodoKey?: string) => void
+  settlePayrollDeductions: (employeeId: string, periodoKey: string) => void
   /** Devuelve la cuota quincenal activa de préstamos para un empleado */
   getActiveLoanBiweeklyTotal: (employeeId: string) => number
-  /** Devuelve el total de adelantos aprobados para la próxima quincena */
-  getApprovedAdvancesTotal: (employeeId: string) => number
+  /** Devuelve el descuento del préstamo para una quincena específica */
+  getLoanDeductionForPeriod: (employeeId: string, periodoKey: string) => number
+  /** Devuelve los adelantos aprobados para una quincena específica */
+  getApprovedAdvancesForPeriod: (employeeId: string, periodoKey: string) => number
 }
 
 const STORAGE_KEY = "rrhh_employees_v2"
@@ -455,30 +458,86 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       // ── Préstamos ────────────────────────────────────────────────
       addLoan: (loan) => {
-        const biweekly = loan.biweeklyPayment ?? Math.round(loan.monthlyPayment / 2)
-        const termBiweekly = loan.termBiweekly ?? loan.term * 2
         const newLoan: HRLoan = {
           ...loan,
           id: `loan-${crypto.randomUUID()}`,
-          status: (loan as any).status || "pending",
-          balance: loan.amount,
-          remainingTerm: termBiweekly,
-          biweeklyPayment: biweekly,
-          termBiweekly,
+          status: "pending",
+          requestedAt: new Date().toISOString(),
+          balance: 0,
+          biweeklyPayment: 0,
+          remainingBiweekly: 0,
+          deductionSchedule: {},
         }
         setLoans((prev) => [newLoan, ...prev])
+      },
+
+      approveLoan: (loanId, interestRate: number, biweeklyInstallments: number) => {
+        setLoans((prev) => {
+          const updated = prev.map((loan) => {
+            if (loan.id !== loanId) return loan
+            
+            // Calcular monto con interés
+            const totalAmount = interestRate > 0 
+              ? loan.requestedAmount * (1 + interestRate / 100) 
+              : loan.requestedAmount
+            
+            // Cuota quincenal
+            const biweeklyPayment = Math.round(totalAmount / biweeklyInstallments)
+            
+            // Crear calendario de descuentos
+            const deductionSchedule: { [key: string]: number } = {}
+            let currentBiweekly = biweeklyInstallments
+            let totalScheduled = 0
+            
+            // Generar el calendario a partir de hoy
+            const today = new Date()
+            today.setDate(1) // Comenzar desde el 1 del mes actual
+            
+            for (let i = 0; i < biweeklyInstallments; i++) {
+              // Alternar entre Q1 (15) y Q2 (30) del mes
+              const month = today.getMonth() + Math.floor((today.getDate() + i * 15) / 30)
+              const year = today.getFullYear() + Math.floor(month / 12)
+              const monthStr = String((month % 12) + 1).padStart(2, "0")
+              const yearStr = String(year)
+              
+              const quarterIdx = i % 2
+              const quarterKey = quarterIdx === 0 ? "Q1" : "Q2"
+              const periodoKey = `${yearStr}-${monthStr}-${quarterKey}`
+              
+              const amount = i === biweeklyInstallments - 1 
+                ? totalAmount - totalScheduled 
+                : biweeklyPayment
+              
+              deductionSchedule[periodoKey] = amount
+              totalScheduled += amount
+            }
+            
+            return {
+              ...loan,
+              status: "approved",
+              approvedAt: new Date().toISOString(),
+              interestRate,
+              biweeklyInstallments,
+              biweeklyPayment,
+              remainingBiweekly: biweeklyInstallments,
+              balance: totalAmount,
+              deductionSchedule,
+            }
+          })
+          return updated
+        })
       },
 
       updateLoanStatus: (id, status) => {
         setLoans((prev) => {
           const updated = prev.map((l) => (l.id === id ? { ...l, status } : l))
-          // Si se aprueba, re-sincronizar nómina
+          // Re-sincronizar si está activo
           const loan = updated.find((l) => l.id === id)
-          if (loan && (status === "active" || status === "approved")) {
+          if (loan && loan.status === "active") {
             const empLoans = updated.filter(
-              (l) => l.employeeId === loan.employeeId && (l.status === "active" || l.status === "approved")
+              (l) => l.employeeId === loan.employeeId && l.status === "active"
             )
-            const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+            const totalLoanCuota = empLoans.reduce((acc, l) => acc + l.biweeklyPayment, 0)
             const empAdvances = requests.filter(
               (r) => r.employeeId === loan.employeeId && r.type === "payroll_advance" && r.status === "approved"
             )
@@ -521,73 +580,74 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
       },
 
       // ── Liquidar deducciones al procesar nómina ──────────────────
-      settlePayrollDeductions: (empId, amounts, periodoKey) => {
-        // 1. Préstamos activos: descontar cuota del balance
-        if (amounts.loan > 0) {
-          setLoans((prev) => {
-            let remaining = amounts.loan
-            return prev.map((loan) => {
-              if (loan.employeeId !== empId) return loan
-              if (loan.status !== "active" && loan.status !== "approved") return loan
-              if (remaining <= 0) return loan
-
-              const cuota = loan.biweeklyPayment ?? loan.monthlyPayment / 2
-              const paid = Math.min(cuota, remaining)
-              remaining -= paid
-
-              const newBalance = Math.max(0, loan.balance - paid)
-              const isCompleted = newBalance <= 0.01
-
-              const payment: HRLoanPayment = {
-                id: `pay-${crypto.randomUUID()}`,
-                date: new Date().toISOString(),
-                amount: paid,
-                source: "payroll",
-                periodoKey,
-              }
-
-              return {
-                ...loan,
-                balance: isCompleted ? 0 : newBalance,
-                remainingTerm: isCompleted ? 0 : Math.max(0, loan.remainingTerm - 1),
-                status: isCompleted ? "completed" : "active",
-                payments: [...(loan.payments || []), payment],
-              }
-            })
+      settlePayrollDeductions: (empId, periodoKey) => {
+        setLoans((prev) => {
+          return prev.map((loan) => {
+            if (loan.employeeId !== empId || loan.status !== "active") return loan
+            
+            // Buscar si hay descuento programado para esta quincena
+            const amount = loan.deductionSchedule[periodoKey]
+            if (!amount || amount <= 0) return loan
+            
+            const newBalance = Math.max(0, loan.balance - amount)
+            const isCompleted = newBalance <= 0.01
+            
+            const payment: HRLoanPayment = {
+              id: `pay-${crypto.randomUUID()}`,
+              date: new Date().toISOString(),
+              amount,
+              source: "payroll",
+              periodoKey,
+            }
+            
+            return {
+              ...loan,
+              balance: isCompleted ? 0 : newBalance,
+              remainingBiweekly: isCompleted ? 0 : Math.max(0, loan.remainingBiweekly - 1),
+              status: isCompleted ? "completed" : "active",
+              payments: [...(loan.payments || []), payment],
+            }
           })
-        }
+        })
 
-        // 2. Adelantos aprobados: marcarlos como procesados
-        if (amounts.advance > 0) {
-          setRequests((prev) =>
-            prev.map((req) => {
-              if (
-                req.employeeId === empId &&
-                req.type === "payroll_advance" &&
-                req.status === "approved"
-              ) {
-                return { ...req, status: "processed" as const }
-              }
-              return req
-            })
-          )
-        }
-
-        // 3. Limpiar inputs de nómina del empleado (préstamos y anticipos quedan en 0)
-        //    para la SIGUIENTE quincena (solo si el préstamo quedó saldado)
-        // Esto se maneja automáticamente en el próximo sync al recargar
+        // Adelantos aprobados para esta quincena: marcar como procesados
+        setRequests((prev) =>
+          prev.map((req) => {
+            if (
+              req.employeeId === empId &&
+              req.type === "payroll_advance" &&
+              req.status === "approved" &&
+              req.targetPeriod === periodoKey
+            ) {
+              return { ...req, status: "processed" as const }
+            }
+            return req
+          })
+        )
       },
 
       // ── Helpers de consulta ──────────────────────────────────────
       getActiveLoanBiweeklyTotal: (employeeId) => {
         return loans
-          .filter((l) => l.employeeId === employeeId && (l.status === "active" || l.status === "approved"))
-          .reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+          .filter((l) => l.employeeId === employeeId && l.status === "active")
+          .reduce((acc, l) => acc + l.biweeklyPayment, 0)
       },
 
-      getApprovedAdvancesTotal: (employeeId) => {
+      getLoanDeductionForPeriod: (employeeId, periodoKey) => {
+        return loans
+          .filter((l) => l.employeeId === employeeId && l.status === "active")
+          .reduce((acc, l) => acc + (l.deductionSchedule[periodoKey] || 0), 0)
+      },
+
+      getApprovedAdvancesForPeriod: (employeeId, periodoKey) => {
         return requests
-          .filter((r) => r.employeeId === employeeId && r.type === "payroll_advance" && r.status === "approved")
+          .filter(
+            (r) =>
+              r.employeeId === employeeId &&
+              r.type === "payroll_advance" &&
+              r.status === "approved" &&
+              r.targetPeriod === periodoKey
+          )
           .reduce((acc, r) => acc + (r.amount || 0), 0)
       },
 
