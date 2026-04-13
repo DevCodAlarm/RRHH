@@ -40,6 +40,8 @@ export interface HRRequest {
   amount?: number
   createdAt: string
   avatar: string
+  /** Quincena destino del descuento: YYYY-MM-QN (ej. 2025-04-Q2) */
+  targetPeriod?: string
 }
 
 export interface HRLoanPayment {
@@ -47,6 +49,7 @@ export interface HRLoanPayment {
   date: string
   amount: number
   source: "payroll" | "manual"
+  periodoKey?: string
 }
 
 export interface HRLoan {
@@ -55,15 +58,27 @@ export interface HRLoan {
   employeeName: string
   department: string
   amount: number
+  /** Balance pendiente (deuda restante) */
   balance: number
+  /** Cuota quincenal a descontar */
+  biweeklyPayment: number
+  /** Cuota mensual (referencia) */
   monthlyPayment: number
   interestRate: number
+  /** Plazo en quincenas */
+  termBiweekly: number
+  /** Plazo original en meses (referencia) */
   term: number
+  /** Quincenas restantes */
   remainingTerm: number
-  status: "active" | "completed" | "pending"
+  status: "active" | "completed" | "pending" | "approved"
   startDate: string
   avatar: string
   payments?: HRLoanPayment[]
+  /** Cuántas quincenas debe descontarse (si es null = hasta saldarlo, distribuido en cuotas) */
+  installments?: number | null
+  /** Cuántas quincenas por cuota se configuraron */
+  installmentCount?: number
 }
 
 export interface ActivityLog {
@@ -123,6 +138,7 @@ interface EmployeesContextType {
   // Prestamos
   addLoan: (loan: Omit<HRLoan, "id" | "balance" | "remainingTerm">) => void
   updateLoanStatus: (id: string, status: HRLoan["status"]) => void
+  payLoanManual: (loanId: string, amount: number) => void
   // Actividad
   logActivity: (activity: Omit<ActivityLog, "id" | "time">) => void
   // Desempeño
@@ -131,7 +147,15 @@ interface EmployeesContextType {
   addGoal: (goal: Omit<PerformanceGoal, "id">) => void
   updateGoalProgress: (id: string, progress: number) => void
   addReview: (review: Omit<PerformanceReview, "id" | "date" | "score">) => void
-  settlePayrollDeductions: (employeeId: string, amounts: { loan: number, advance: number }) => void
+  /**
+   * Liquidar descuentos de nómina: descuenta la cuota del préstamo del balance
+   * y marca el adelanto como procesado.
+   */
+  settlePayrollDeductions: (employeeId: string, amounts: { loan: number; advance: number }, periodoKey?: string) => void
+  /** Devuelve la cuota quincenal activa de préstamos para un empleado */
+  getActiveLoanBiweeklyTotal: (employeeId: string) => number
+  /** Devuelve el total de adelantos aprobados para la próxima quincena */
+  getApprovedAdvancesTotal: (employeeId: string) => number
 }
 
 const STORAGE_KEY = "rrhh_employees_v2"
@@ -141,7 +165,6 @@ const ACTIVITY_KEY = "rrhh_actividad_v2"
 const GOALS_KEY = "rrhh_goals_v2"
 const REVIEWS_KEY = "rrhh_reviews_v2"
 
-// Los 5 empleados realistas, alineados con los usuarios del login
 const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: "usr-001",
@@ -259,23 +282,38 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   const loadData = () => {
     try {
       const storedEmps = localStorage.getItem(STORAGE_KEY)
-      const currentEmps = storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES
+      const currentEmps: Employee[] = storedEmps ? JSON.parse(storedEmps) : INITIAL_EMPLOYEES
       setEmployees(currentEmps)
 
-      // Sincronizar todos con Nómina para asegurar integridad
-      currentEmps.forEach((emp: any) => {
+      const storedLoans = localStorage.getItem(LOANS_KEY)
+      const currentLoans: HRLoan[] = storedLoans ? JSON.parse(storedLoans) : []
+
+      const storedReqs = localStorage.getItem(REQS_KEY)
+      const currentReqs: HRRequest[] = storedReqs ? JSON.parse(storedReqs) : []
+
+      setRequests(currentReqs)
+      setLoans(currentLoans)
+
+      // Sincronizar todos con Nómina, incluyendo préstamos y adelantos activos
+      currentEmps.forEach((emp) => {
+        const empLoans = currentLoans.filter(
+          (l) => l.employeeId === emp.id && (l.status === "active" || l.status === "approved")
+        )
+        const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+
+        const empAdvances = currentReqs.filter(
+          (r) => r.employeeId === emp.id && r.type === "payroll_advance" && r.status === "approved"
+        )
+        const totalAdvances = empAdvances.reduce((acc, r) => acc + (r.amount || 0), 0)
+
         syncEmpleadoDesdeContexto({
           id: emp.id,
           name: emp.name,
-          salary: emp.salary
+          salary: emp.salary,
+          prestamos: totalLoanCuota,
+          anticipos: totalAdvances,
         })
       })
-
-      const storedReqs = localStorage.getItem(REQS_KEY)
-      setRequests(storedReqs ? JSON.parse(storedReqs) : [])
-
-      const storedLoans = localStorage.getItem(LOANS_KEY)
-      setLoans(storedLoans ? JSON.parse(storedLoans) : [])
 
       const storedActs = localStorage.getItem(ACTIVITY_KEY)
       setActivities(storedActs ? JSON.parse(storedActs) : [])
@@ -298,7 +336,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
     const handleSync = () => loadData()
     window.addEventListener("storage", handleSync)
     window.addEventListener("storage_sync", handleSync)
-    
+
     return () => {
       window.removeEventListener("storage", handleSync)
       window.removeEventListener("storage_sync", handleSync)
@@ -315,189 +353,286 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(REVIEWS_KEY, JSON.stringify(reviews))
   }, [employees, requests, loans, activities, goals, reviews, loaded])
 
-  const value = useMemo<EmployeesContextType>(() => ({
-    employees,
-    requests,
-    loans,
-    activities,
-    createEmployee: (payload) => {
-      const employee: Employee = {
-        id: `emp-${crypto.randomUUID()}`,
-        name: payload.name.trim(),
-        email: payload.email.trim(),
-        phone: payload.phone.trim(),
-        department: payload.department.trim(),
-        position: payload.position.trim(),
-        salary: payload.salary,
-        status: "active",
-        startDate: new Date().toISOString().slice(0, 10),
-        avatar: getInitials(payload.name),
-      }
-      setEmployees((prev) => [employee, ...prev])
-      
-      // Sincronizar con Nómina
-      syncEmpleadoDesdeContexto({
-        id: employee.id,
-        name: employee.name,
-        salary: employee.salary
-      })
-      
-      logGlobalActivity({
-        type: "employee.created",
-        message: `Se registró un nuevo colaborador: ${employee.name}`,
-        actor: { id: "system", name: "Sistema de RRHH" }
-      })
+  const value = useMemo<EmployeesContextType>(
+    () => ({
+      employees,
+      requests,
+      loans,
+      activities,
 
-      return employee
-    },
-    updateEmployee: (employeeId, updates) => {
-      setEmployees((prev) => {
-        const next = prev.map((emp) =>
-          emp.id === employeeId ? { ...emp, ...updates } : emp
-        )
-        
-        // Sincronizar con Nómina si cambió nombre o salario
-        const emp = next.find(e => e.id === employeeId)
-        if (emp && (updates.name || updates.salary)) {
-          syncEmpleadoDesdeContexto({
-            id: emp.id,
-            name: emp.name,
-            salary: emp.salary
+      createEmployee: (payload) => {
+        const employee: Employee = {
+          id: `emp-${crypto.randomUUID()}`,
+          name: payload.name.trim(),
+          email: payload.email.trim(),
+          phone: payload.phone.trim(),
+          department: payload.department.trim(),
+          position: payload.position.trim(),
+          salary: payload.salary,
+          status: "active",
+          startDate: new Date().toISOString().slice(0, 10),
+          avatar: getInitials(payload.name),
+        }
+        setEmployees((prev) => [employee, ...prev])
+        syncEmpleadoDesdeContexto({ id: employee.id, name: employee.name, salary: employee.salary })
+        logGlobalActivity({
+          type: "employee.created",
+          message: `Se registró un nuevo colaborador: ${employee.name}`,
+          actor: { id: "system", name: "Sistema de RRHH" },
+        })
+        return employee
+      },
+
+      updateEmployee: (employeeId, updates) => {
+        setEmployees((prev) => {
+          const next = prev.map((emp) => (emp.id === employeeId ? { ...emp, ...updates } : emp))
+          const emp = next.find((e) => e.id === employeeId)
+          if (emp && (updates.name || updates.salary !== undefined)) {
+            syncEmpleadoDesdeContexto({ id: emp.id, name: emp.name, salary: emp.salary })
+          }
+          return next
+        })
+      },
+
+      deleteEmployee: (employeeId) => {
+        const emp = employees.find((e) => e.id === employeeId)
+        if (emp) {
+          logGlobalActivity({
+            type: "employee.deleted",
+            message: `Se eliminó al colaborador: ${emp.name}`,
+            actor: { id: "system", name: "Sistema de RRHH" },
           })
         }
-        
-        return next
-      })
-    },
-    deleteEmployee: (employeeId) => {
-      const emp = employees.find(e => e.id === employeeId)
-      if (emp) {
-        logGlobalActivity({
-          type: "employee.deleted",
-          message: `Se eliminó al colaborador: ${emp.name}`,
-          actor: { id: "system", name: "Sistema de RRHH" }
-        })
-      }
-      setEmployees((prev) => prev.filter((employee) => employee.id !== employeeId))
-    },
-    getEmployeeByName: (name) => {
-      const normalized = name.trim().toLowerCase()
-      return employees.find((employee) => employee.name.toLowerCase() === normalized)
-    },
-    getEmployeeById: (id) => {
-      return employees.find((employee) => employee.id === id)
-    },
-    // Solicitudes
-    addRequest: (req) => {
-      const newReq: HRRequest = {
-        ...req,
-        id: `req-${crypto.randomUUID()}`,
-        status: "pending",
-        createdAt: new Date().toISOString()
-      }
-      setRequests(prev => [newReq, ...prev])
-    },
-    updateRequestStatus: (id, status) => {
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r))
-    },
-    // Prestamos
-    addLoan: (loan) => {
-      const newLoan: HRLoan = {
-        ...loan,
-        id: `loan-${crypto.randomUUID()}`,
-        status: (loan as any).status || "active",
-        balance: loan.amount,
-        remainingTerm: loan.term
-      }
-      setLoans(prev => [newLoan, ...prev])
-    },
-    updateLoanStatus: (id, status) => {
-      setLoans(prev => prev.map(l => l.id === id ? { ...l, status } : l))
-    },
-    // Actividad
-    logActivity: (activity) => {
-      const newAct: ActivityLog = {
-        ...activity,
-        id: `act-${crypto.randomUUID()}`,
-        time: "Justo ahora"
-      }
-      setActivities(prev => [newAct, ...prev].slice(0, 20)) // Mantener los 20 más recientes
-    },
-    // Desempeño
-    goals,
-    reviews,
-    addGoal: (goal) => {
-      const newGoal: PerformanceGoal = {
-        ...goal,
-        id: `goal-${crypto.randomUUID()}`
-      }
-      setGoals(prev => [newGoal, ...prev])
-    },
-    updateGoalProgress: (id, progress) => {
-      setGoals(prev => prev.map(g => 
-        g.id === id 
-          ? { 
-              ...g, 
-              progress, 
-              status: progress === 100 ? "completed" : g.status 
-            } 
-          : g
-      ))
-    },
-    settlePayrollDeductions: (empId, amounts) => {
-      // 1. Préstamos: Liquidar el monto pagado distribuyéndolo si hay varios
-      if (amounts.loan > 0) {
-        setLoans(prev => {
-          let remainingToSettle = amounts.loan
-          return prev.map(loan => {
-            if (loan.employeeId === empId && loan.status === "active" && remainingToSettle > 0) {
-              // Determinamos cuánto de este "block" de descuento le toca a este préstamo
-              // Normalmente es su monthlyPayment, pero para ser robustos tomamos lo que sobre
-              const amountForThisLoan = Math.min(loan.monthlyPayment, remainingToSettle)
-              remainingToSettle -= amountForThisLoan
+        setEmployees((prev) => prev.filter((e) => e.id !== employeeId))
+      },
 
-              const newBalance = Math.max(0, loan.balance - amountForThisLoan)
-              const newPayment: HRLoanPayment = {
+      getEmployeeByName: (name) => {
+        const normalized = name.trim().toLowerCase()
+        return employees.find((e) => e.name.toLowerCase() === normalized)
+      },
+
+      getEmployeeById: (id) => employees.find((e) => e.id === id),
+
+      // ── Solicitudes ─────────────────────────────────────────────
+      addRequest: (req) => {
+        const newReq: HRRequest = {
+          ...req,
+          id: `req-${crypto.randomUUID()}`,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        }
+        setRequests((prev) => [newReq, ...prev])
+      },
+
+      updateRequestStatus: (id, status) => {
+        setRequests((prev) => {
+          const updated = prev.map((r) => (r.id === id ? { ...r, status } : r))
+          // Re-sincronizar nómina si se aprueba/rechaza un adelanto
+          const req = updated.find((r) => r.id === id)
+          if (req && req.type === "payroll_advance") {
+            const empLoans = loans.filter(
+              (l) => l.employeeId === req.employeeId && (l.status === "active" || l.status === "approved")
+            )
+            const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+            const empAdvances = updated.filter(
+              (r2) => r2.employeeId === req.employeeId && r2.type === "payroll_advance" && r2.status === "approved"
+            )
+            const totalAdvances = empAdvances.reduce((acc, r2) => acc + (r2.amount || 0), 0)
+            const emp = employees.find((e) => e.id === req.employeeId)
+            if (emp) {
+              syncEmpleadoDesdeContexto({
+                id: emp.id,
+                name: emp.name,
+                salary: emp.salary,
+                prestamos: totalLoanCuota,
+                anticipos: totalAdvances,
+              })
+            }
+          }
+          return updated
+        })
+      },
+
+      // ── Préstamos ────────────────────────────────────────────────
+      addLoan: (loan) => {
+        const biweekly = loan.biweeklyPayment ?? Math.round(loan.monthlyPayment / 2)
+        const termBiweekly = loan.termBiweekly ?? loan.term * 2
+        const newLoan: HRLoan = {
+          ...loan,
+          id: `loan-${crypto.randomUUID()}`,
+          status: (loan as any).status || "pending",
+          balance: loan.amount,
+          remainingTerm: termBiweekly,
+          biweeklyPayment: biweekly,
+          termBiweekly,
+        }
+        setLoans((prev) => [newLoan, ...prev])
+      },
+
+      updateLoanStatus: (id, status) => {
+        setLoans((prev) => {
+          const updated = prev.map((l) => (l.id === id ? { ...l, status } : l))
+          // Si se aprueba, re-sincronizar nómina
+          const loan = updated.find((l) => l.id === id)
+          if (loan && (status === "active" || status === "approved")) {
+            const empLoans = updated.filter(
+              (l) => l.employeeId === loan.employeeId && (l.status === "active" || l.status === "approved")
+            )
+            const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+            const empAdvances = requests.filter(
+              (r) => r.employeeId === loan.employeeId && r.type === "payroll_advance" && r.status === "approved"
+            )
+            const totalAdvances = empAdvances.reduce((acc, r) => acc + (r.amount || 0), 0)
+            const emp = employees.find((e) => e.id === loan.employeeId)
+            if (emp) {
+              syncEmpleadoDesdeContexto({
+                id: emp.id,
+                name: emp.name,
+                salary: emp.salary,
+                prestamos: totalLoanCuota,
+                anticipos: totalAdvances,
+              })
+            }
+          }
+          return updated
+        })
+      },
+
+      payLoanManual: (loanId, amount) => {
+        setLoans((prev) =>
+          prev.map((loan) => {
+            if (loan.id !== loanId) return loan
+            const newBalance = Math.max(0, loan.balance - amount)
+            const payment: HRLoanPayment = {
+              id: `pay-${crypto.randomUUID()}`,
+              date: new Date().toISOString(),
+              amount,
+              source: "manual",
+            }
+            return {
+              ...loan,
+              balance: newBalance,
+              remainingTerm: newBalance > 0.01 ? Math.max(0, loan.remainingTerm - 1) : 0,
+              status: newBalance <= 0.01 ? "completed" : loan.status,
+              payments: [...(loan.payments || []), payment],
+            }
+          })
+        )
+      },
+
+      // ── Liquidar deducciones al procesar nómina ──────────────────
+      settlePayrollDeductions: (empId, amounts, periodoKey) => {
+        // 1. Préstamos activos: descontar cuota del balance
+        if (amounts.loan > 0) {
+          setLoans((prev) => {
+            let remaining = amounts.loan
+            return prev.map((loan) => {
+              if (loan.employeeId !== empId) return loan
+              if (loan.status !== "active" && loan.status !== "approved") return loan
+              if (remaining <= 0) return loan
+
+              const cuota = loan.biweeklyPayment ?? loan.monthlyPayment / 2
+              const paid = Math.min(cuota, remaining)
+              remaining -= paid
+
+              const newBalance = Math.max(0, loan.balance - paid)
+              const isCompleted = newBalance <= 0.01
+
+              const payment: HRLoanPayment = {
                 id: `pay-${crypto.randomUUID()}`,
                 date: new Date().toISOString(),
-                amount: amountForThisLoan,
-                source: "payroll"
+                amount: paid,
+                source: "payroll",
+                periodoKey,
               }
-              
+
               return {
                 ...loan,
-                balance: newBalance,
-                remainingTerm: newBalance > 0.01 ? loan.remainingTerm - 1 : 0,
-                status: newBalance <= 0.01 ? "completed" : "active",
-                payments: [...(loan.payments || []), newPayment]
+                balance: isCompleted ? 0 : newBalance,
+                remainingTerm: isCompleted ? 0 : Math.max(0, loan.remainingTerm - 1),
+                status: isCompleted ? "completed" : "active",
+                payments: [...(loan.payments || []), payment],
               }
-            }
-            return loan
+            })
           })
-        })
-      }
+        }
 
-      // 2. Adelantos: Marcar como procesados
-      if (amounts.advance > 0) {
-        setRequests(prev => prev.map(req => {
-          if (req.employeeId === empId && req.type === "payroll_advance" && req.status === "approved") {
-            return { ...req, status: "processed" as const }
-          }
-          return req
-        }))
-      }
-    },
-    addReview: (review) => {
-      const score = Math.round((review.productivity + review.teamwork + review.communication + review.leadership) / 4 * 10)
-      const newReview: PerformanceReview = {
-        ...review,
-        id: `rev-${crypto.randomUUID()}`,
-        date: new Date().toISOString().slice(0, 10),
-        score
-      }
-      setReviews(prev => [newReview, ...prev])
-    }
-  }), [employees, requests, loans, activities, goals, reviews])
+        // 2. Adelantos aprobados: marcarlos como procesados
+        if (amounts.advance > 0) {
+          setRequests((prev) =>
+            prev.map((req) => {
+              if (
+                req.employeeId === empId &&
+                req.type === "payroll_advance" &&
+                req.status === "approved"
+              ) {
+                return { ...req, status: "processed" as const }
+              }
+              return req
+            })
+          )
+        }
+
+        // 3. Limpiar inputs de nómina del empleado (préstamos y anticipos quedan en 0)
+        //    para la SIGUIENTE quincena (solo si el préstamo quedó saldado)
+        // Esto se maneja automáticamente en el próximo sync al recargar
+      },
+
+      // ── Helpers de consulta ──────────────────────────────────────
+      getActiveLoanBiweeklyTotal: (employeeId) => {
+        return loans
+          .filter((l) => l.employeeId === employeeId && (l.status === "active" || l.status === "approved"))
+          .reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+      },
+
+      getApprovedAdvancesTotal: (employeeId) => {
+        return requests
+          .filter((r) => r.employeeId === employeeId && r.type === "payroll_advance" && r.status === "approved")
+          .reduce((acc, r) => acc + (r.amount || 0), 0)
+      },
+
+      // ── Actividad ────────────────────────────────────────────────
+      logActivity: (activity) => {
+        const newAct: ActivityLog = {
+          ...activity,
+          id: `act-${crypto.randomUUID()}`,
+          time: "Justo ahora",
+        }
+        setActivities((prev) => [newAct, ...prev].slice(0, 20))
+      },
+
+      // ── Desempeño ────────────────────────────────────────────────
+      goals,
+      reviews,
+
+      addGoal: (goal) => {
+        const newGoal: PerformanceGoal = { ...goal, id: `goal-${crypto.randomUUID()}` }
+        setGoals((prev) => [newGoal, ...prev])
+      },
+
+      updateGoalProgress: (id, progress) => {
+        setGoals((prev) =>
+          prev.map((g) =>
+            g.id === id ? { ...g, progress, status: progress === 100 ? "completed" : g.status } : g
+          )
+        )
+      },
+
+      addReview: (review) => {
+        const score = Math.round(
+          ((review.productivity + review.teamwork + review.communication + review.leadership) / 4) * 10
+        )
+        const newReview: PerformanceReview = {
+          ...review,
+          id: `rev-${crypto.randomUUID()}`,
+          date: new Date().toISOString().slice(0, 10),
+          score,
+        }
+        setReviews((prev) => [newReview, ...prev])
+      },
+    }),
+    [employees, requests, loans, activities, goals, reviews]
+  )
 
   return <EmployeesContext.Provider value={value}>{loaded ? children : null}</EmployeesContext.Provider>
 }
