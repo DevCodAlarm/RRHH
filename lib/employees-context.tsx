@@ -290,6 +290,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       const storedLoans = localStorage.getItem(LOANS_KEY)
       const currentLoans: HRLoan[] = storedLoans ? JSON.parse(storedLoans) : []
+      console.log("[v0] loadData - Loans from localStorage:", currentLoans.length, "loans:", currentLoans)
 
       const storedReqs = localStorage.getItem(REQS_KEY)
       const currentReqs: HRRequest[] = storedReqs ? JSON.parse(storedReqs) : []
@@ -334,9 +335,13 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    console.log("[v0] Provider mounted - Loading initial data")
     loadData()
 
-    const handleSync = () => loadData()
+    const handleSync = () => {
+      console.log("[v0] Storage sync event fired - Reloading data")
+      loadData()
+    }
     window.addEventListener("storage", handleSync)
     window.addEventListener("storage_sync", handleSync)
 
@@ -348,6 +353,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loaded) return
+    console.log("[v0] Saving to localStorage - loans count:", loans.length, "loans:", loans)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
     localStorage.setItem(REQS_KEY, JSON.stringify(requests))
     localStorage.setItem(LOANS_KEY, JSON.stringify(loans))
