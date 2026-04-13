@@ -20,7 +20,7 @@ import {
 import { CheckCircle2, Clock, AlertCircle, TrendingDown } from "lucide-react"
 
 export default function LoansPage() {
-  const { currentUser } = useAuth()
+  const { user: currentUser } = useAuth()
   const { employees, loans, addLoan } = useEmployees()
   const [amount, setAmount] = useState("")
   const [reason, setReason] = useState("")
@@ -36,14 +36,9 @@ export default function LoansPage() {
   const rejectedLoans = userLoans.filter((l) => l.status === "rejected")
 
   const handleSubmit = () => {
-    console.log("[v0] handleSubmit - amount:", amount, "currentEmployee:", currentEmployee, "currentUser:", currentUser)
-    
-    if (!amount || !currentEmployee) {
-      console.log("[v0] FAILED - Missing amount or currentEmployee")
-      return
-    }
+    if (!amount || !currentEmployee) return
 
-    const loanPayload = {
+    addLoan({
       employeeId: currentEmployee.id,
       employeeName: currentEmployee.name,
       department: currentEmployee.department,
@@ -55,15 +50,11 @@ export default function LoansPage() {
       remainingBiweekly: 0,
       deductionSchedule: {},
       avatar: currentEmployee.avatar || "",
-    }
-    
-    console.log("[v0] Calling addLoan with payload:", loanPayload)
-    addLoan(loanPayload)
+    })
 
     setAmount("")
     setReason("")
     setShowDialog(false)
-    console.log("[v0] Loan submitted - fields cleared")
   }
 
   return (

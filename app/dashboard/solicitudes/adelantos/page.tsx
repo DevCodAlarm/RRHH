@@ -36,7 +36,7 @@ function getNextBiweekly(): string {
 }
 
 export default function AdelantosPage() {
-  const { currentUser } = useAuth()
+  const { user: currentUser } = useAuth()
   const { employees, requests, addRequest } = useEmployees()
   const [amount, setAmount] = useState("")
   const [showDialog, setShowDialog] = useState(false)

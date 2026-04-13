@@ -458,7 +458,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       // ── Préstamos ────────────────────────────────────────────────
       addLoan: (loan) => {
-        console.log("[v0] addLoan called with:", loan)
         const newLoan: HRLoan = {
           ...loan,
           id: `loan-${crypto.randomUUID()}`,
@@ -469,12 +468,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           remainingBiweekly: 0,
           deductionSchedule: {},
         }
-        console.log("[v0] Created newLoan:", newLoan)
-        setLoans((prev) => {
-          const updated = [newLoan, ...prev]
-          console.log("[v0] Loans state updated, count:", updated.length)
-          return updated
-        })
+        setLoans((prev) => [newLoan, ...prev])
       },
 
       approveLoan: (loanId, interestRate: number, biweeklyInstallments: number) => {
@@ -657,7 +651,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           .reduce((acc, r) => acc + (r.amount || 0), 0)
       },
 
-      // ── Actividad ────────────────────────────────────────────────
+      // ── Actividad ────────────────────────────────────────��───────
       logActivity: (activity) => {
         const newAct: ActivityLog = {
           ...activity,
