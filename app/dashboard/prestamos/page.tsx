@@ -36,9 +36,14 @@ export default function LoansPage() {
   const rejectedLoans = userLoans.filter((l) => l.status === "rejected")
 
   const handleSubmit = () => {
-    if (!amount || !currentEmployee) return
+    console.log("[v0] handleSubmit - amount:", amount, "currentEmployee:", currentEmployee, "currentUser:", currentUser)
+    
+    if (!amount || !currentEmployee) {
+      console.log("[v0] FAILED - Missing amount or currentEmployee")
+      return
+    }
 
-    addLoan({
+    const loanPayload = {
       employeeId: currentEmployee.id,
       employeeName: currentEmployee.name,
       department: currentEmployee.department,
@@ -50,11 +55,15 @@ export default function LoansPage() {
       remainingBiweekly: 0,
       deductionSchedule: {},
       avatar: currentEmployee.avatar || "",
-    })
+    }
+    
+    console.log("[v0] Calling addLoan with payload:", loanPayload)
+    addLoan(loanPayload)
 
     setAmount("")
     setReason("")
     setShowDialog(false)
+    console.log("[v0] Loan submitted - fields cleared")
   }
 
   return (

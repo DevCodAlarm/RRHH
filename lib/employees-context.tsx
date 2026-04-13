@@ -458,6 +458,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
 
       // ── Préstamos ────────────────────────────────────────────────
       addLoan: (loan) => {
+        console.log("[v0] addLoan called with:", loan)
         const newLoan: HRLoan = {
           ...loan,
           id: `loan-${crypto.randomUUID()}`,
@@ -468,7 +469,12 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           remainingBiweekly: 0,
           deductionSchedule: {},
         }
-        setLoans((prev) => [newLoan, ...prev])
+        console.log("[v0] Created newLoan:", newLoan)
+        setLoans((prev) => {
+          const updated = [newLoan, ...prev]
+          console.log("[v0] Loans state updated, count:", updated.length)
+          return updated
+        })
       },
 
       approveLoan: (loanId, interestRate: number, biweeklyInstallments: number) => {
