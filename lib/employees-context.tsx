@@ -481,8 +481,6 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
           return updated
         })
-        // Dispara evento para sincronizar otras pestañas/ventanas
-        window.dispatchEvent(new Event("storage_sync"))
       },
 
       approveLoan: (loanId, interestRate: number, biweeklyInstallments: number) => {
@@ -578,8 +576,8 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
       },
 
       payLoanManual: (loanId, amount) => {
-        setLoans((prev) =>
-          prev.map((loan) => {
+        setLoans((prev) => {
+          const updated = prev.map((loan) => {
             if (loan.id !== loanId) return loan
             const newBalance = Math.max(0, loan.balance - amount)
             const payment: HRLoanPayment = {
@@ -596,13 +594,15 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               payments: [...(loan.payments || []), payment],
             }
           })
-        )
+          localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
+          return updated
+        })
       },
 
       // ── Liquidar deducciones al procesar nómina ──────────────────
       settlePayrollDeductions: (empId, periodoKey) => {
         setLoans((prev) => {
-          return prev.map((loan) => {
+          const updated = prev.map((loan) => {
             if (loan.employeeId !== empId || loan.status !== "active") return loan
             
             // Buscar si hay descuento programado para esta quincena
@@ -628,11 +628,13 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
               payments: [...(loan.payments || []), payment],
             }
           })
+          localStorage.setItem(LOANS_KEY, JSON.stringify(updated))
+          return updated
         })
 
         // Adelantos aprobados para esta quincena: marcar como procesados
-        setRequests((prev) =>
-          prev.map((req) => {
+        setRequests((prev) => {
+          const updated = prev.map((req) => {
             if (
               req.employeeId === empId &&
               req.type === "payroll_advance" &&
@@ -643,7 +645,9 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
             }
             return req
           })
-        )
+          localStorage.setItem(REQS_KEY, JSON.stringify(updated))
+          return updated
+        })
       },
 
       // ── Helpers de consulta ──────────────────────────────────────
