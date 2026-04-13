@@ -73,7 +73,7 @@ export interface HRLoan {
   deductionSchedule: {
     [periodoKey: string]: number // periodoKey (2025-04-Q1) => monto a descontar
   }
-  status: "pending" | "approved" | "active" | "completed"
+  status: "pending" | "approved" | "active" | "completed" | "rejected"
   requestedAt: string
   approvedAt?: string
   startDate?: string
@@ -300,9 +300,9 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
       // Sincronizar todos con Nómina, incluyendo préstamos y adelantos activos
       currentEmps.forEach((emp) => {
         const empLoans = currentLoans.filter(
-          (l) => l.employeeId === emp.id && (l.status === "active" || l.status === "approved")
+          (l) => l.employeeId === emp.id && l.status === "active"
         )
-        const totalLoanCuota = empLoans.reduce((acc, l) => acc + (l.biweeklyPayment ?? l.monthlyPayment / 2), 0)
+        const totalLoanCuota = empLoans.reduce((acc, l) => acc + l.biweeklyPayment, 0)
 
         const empAdvances = currentReqs.filter(
           (r) => r.employeeId === emp.id && r.type === "payroll_advance" && r.status === "approved"
