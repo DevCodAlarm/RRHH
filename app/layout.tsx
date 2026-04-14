@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Geist_Mono } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import { CalendarProvider } from '@/lib/calendar-context'
@@ -8,8 +8,12 @@ import { EmployeesProvider } from '@/lib/employees-context'
 import { PresenceProvider } from '@/lib/presence-context'
 import './globals.css'
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: 'RRHH IA - Sistema de Recursos Humanos',
@@ -40,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="es" className="bg-[#060e1e]">
       <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
           <EmployeesProvider>

@@ -239,35 +239,30 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             type="button"
             onClick={() => !collapsed && toggleMenu(item.name)}
             className={cn(
-              "group w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md",
-              "transition-colors duration-150 ease-out",
+              "group w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg",
+              "transition-all duration-150 ease-out",
               hasActiveChild
-                ? "text-sidebar-foreground/90"
-                : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90",
-              "hover:bg-sidebar-accent/50",
+                ? "text-sidebar-foreground"
+                : "text-sidebar-muted hover:text-sidebar-foreground",
               collapsed && "justify-center px-2"
             )}
             aria-expanded={isExpanded}
           >
             <Icon
               className={cn(
-                "h-4 w-4 shrink-0",
-                "transition-transform duration-200",
-                "ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                "group-hover:scale-110",
-                hasActiveChild ? "opacity-90" : "opacity-50 group-hover:opacity-80"
+                "h-4 w-4 shrink-0 transition-all duration-200",
+                hasActiveChild ? "opacity-100 text-[#4a7fd4]" : "opacity-50 group-hover:opacity-80"
               )}
             />
             {!collapsed && (
               <>
-                <span className={cn("flex-1 text-left text-sm", hasActiveChild && "font-medium")}>
+                <span className={cn("flex-1 text-left text-[13px]", hasActiveChild ? "font-semibold" : "font-normal")}>
                   {item.name}
                 </span>
                 <ChevronDown
                   className={cn(
-                    "h-3.5 w-3.5 opacity-40",
-                    "transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                    isExpanded && "rotate-180 opacity-60"
+                    "h-3.5 w-3.5 opacity-30 transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                    isExpanded && "rotate-180 opacity-50"
                   )}
                 />
               </>
@@ -280,12 +275,11 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               style={{
                 gridTemplateRows: isExpanded ? "1fr" : "0fr",
                 opacity: isExpanded ? 1 : 0,
-                transition:
-                  "grid-template-rows 200ms cubic-bezier(0.4,0,0.2,1), opacity 200ms cubic-bezier(0.4,0,0.2,1)",
+                transition: "grid-template-rows 220ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease",
               }}
             >
               <div className="min-h-0">
-                <div className="ml-5 pl-3 border-l border-sidebar-border/50 py-1 space-y-0.5">
+                <div className="ml-5 pl-3 border-l py-1 space-y-0.5" style={{ borderColor: "#111e35" }}>
                   {item.children!.map((child) => (
                     <NavItem key={child.href} item={child} isChild />
                   ))}
@@ -303,25 +297,24 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         onClick={onMobileClose}
         data-active={isActive ? "true" : undefined}
         className={cn(
-          "group flex items-center gap-3 px-3 py-2 text-sm rounded-md relative z-10",
+          "group flex items-center gap-3 px-3 py-2.5 text-[13px] rounded-lg relative z-10",
           "transition-colors duration-150 ease-out",
           isActive
             ? "text-sidebar-foreground"
-            : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent/30",
+            : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
           collapsed && !isChild && "justify-center px-2",
         )}
       >
         <Icon
           className={cn(
-            "shrink-0 h-4 w-4",
-            "transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+            "shrink-0 h-4 w-4 transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
             isActive
-              ? "opacity-100 scale-105"
-              : "opacity-50 group-hover:opacity-80 group-hover:scale-110"
+              ? "opacity-100 text-[#4a7fd4]"
+              : "opacity-40 group-hover:opacity-70"
           )}
         />
         {!collapsed && (
-          <span className={cn("text-sm leading-none", isActive ? "font-medium" : "font-normal")}>
+          <span className={cn("leading-none", isActive ? "font-semibold" : "font-normal")}>
             {item.name}
           </span>
         )}
@@ -334,57 +327,74 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       {/* Header */}
       <div
         className={cn(
-          "flex items-center h-14 px-4 border-b border-sidebar-border shrink-0",
+          "flex items-center h-16 px-4 shrink-0",
           collapsed ? "justify-center" : "justify-between"
         )}
+        style={{ borderBottom: "1px solid #0f1e38" }}
       >
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center shrink-0">
-            <svg className="h-4 w-4 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+        <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
+          <div
+            className="shrink-0 flex items-center justify-center"
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #1a3259 0%, #0d1b30 100%)",
+              border: "1px solid #1e3660",
+              boxShadow: "0 0 12px rgba(74,127,212,0.15)",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(180,210,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
           {!collapsed && (
-            <span className="text-base font-semibold text-sidebar-foreground tracking-tight">RRHH IA</span>
+            <div className="min-w-0">
+              <span
+                className="block text-sm font-bold tracking-tight"
+                style={{ color: "#e8ecf4", letterSpacing: "-0.01em" }}
+              >
+                RRHH<span style={{ color: "#4a7fd4" }}> IA</span>
+              </span>
+              <span className="block text-[10px]" style={{ color: "#3a4d65", letterSpacing: "0.05em" }}>
+                SISTEMA RH
+              </span>
+            </div>
           )}
         </Link>
-        <button
-          onClick={onToggle}
-          className={cn(
-            "hidden lg:flex p-1.5 rounded-lg text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent",
-            "transition-colors duration-150",
-            collapsed && "absolute -right-3 top-6 bg-sidebar border border-sidebar-border"
-          )}
-        >
-          <ChevronLeft
-            className={cn(
-              "h-4 w-4 transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-              collapsed && "rotate-180"
-            )}
-          />
-        </button>
+        {!collapsed && (
+          <button
+            onClick={onToggle}
+            className="hidden lg:flex p-1.5 rounded-lg transition-colors duration-150"
+            style={{ color: "#3a4d65" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#e8ecf4")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#3a4d65")}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        )}
+        {collapsed && (
+          <button
+            onClick={onToggle}
+            className="hidden lg:flex absolute -right-3 top-6 p-1 rounded-full border transition-colors duration-150"
+            style={{ background: "#060e1e", borderColor: "#111e35", color: "#3a4d65" }}
+          >
+            <ChevronLeft className="h-3.5 w-3.5 rotate-180" />
+          </button>
+        )}
       </div>
 
       {/* Nav — position:relative para que el glider se posicione dentro */}
       <div ref={navRef} className="flex-1 px-3 py-4 overflow-y-auto relative">
-        {/* 
-          GLIDER GPU-ACCELERATED
-          - Usa transform: translateY() en vez de `top` → corre en el compositor thread, nunca causa reflow
-          - Posición inicial sin transición, luego con transición → no salta en el primer render
-          - willChange: transform → el browser crea una capa GPU dedicada antes de la primera animación
-        */}
+        {/* GLIDER GPU — indicador deslizable sobre el item activo */}
         {!collapsed && (
           <div
             ref={gliderRef}
             aria-hidden="true"
-            className="absolute left-3 right-3 rounded-md bg-sidebar-accent pointer-events-none"
-            style={{
-              top: 0,
-              height: 0,
-              opacity: 0,
-              willChange: "transform, height",
-              transform: "translateY(0px)",
-            }}
+            className="sidebar-glider"
           />
         )}
 
@@ -397,21 +407,32 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
       {/* User badge */}
       {!collapsed && user && (
-        <div className="px-4 py-3 border-t border-sidebar-border">
-          <div className="text-xs text-sidebar-muted">Conectado como</div>
-          <div className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</div>
-          <div className="inline-flex items-center px-2 py-0.5 mt-1 rounded-full text-xs font-medium bg-sidebar-accent text-sidebar-accent-foreground border border-sidebar-border/70">
-            {user.role === "admin" && "Administrador"}
-            {user.role === "rrhh" && "Recursos Humanos"}
-            {user.role === "supervisor" && "Supervisor"}
-            {user.role === "empleado" && "Empleado"}
+        <div className="px-4 py-3.5" style={{ borderTop: "1px solid #0f1e38" }}>
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[11px] font-bold"
+              style={{ background: "#1a3259", color: "#4a7fd4" }}
+            >
+              {user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[12px] font-semibold truncate" style={{ color: "#c8deff" }}>
+                {user.name.split(" ").slice(0, 2).join(" ")}
+              </div>
+              <div className="text-[10px]" style={{ color: "#3a5070" }}>
+                {user.role === "admin" && "Administrador"}
+                {user.role === "rrhh" && "Recursos Humanos"}
+                {user.role === "supervisor" && "Supervisor"}
+                {user.role === "empleado" && "Empleado"}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Bottom nav */}
       {filteredBottomNavigation.length > 0 && (
-        <div className="p-3 border-t border-sidebar-border space-y-0.5">
+        <div className="p-3 space-y-0.5" style={{ borderTop: "1px solid #0f1e38" }}>
           {filteredBottomNavigation.map((item) => (
             <NavItem key={item.name} item={item} />
           ))}
@@ -453,10 +474,12 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       {/* Desktop */}
       <aside
         className={cn(
-          "hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:flex-col bg-sidebar border-r border-sidebar-border",
+          "hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:flex-col",
           collapsed ? "lg:w-20" : "lg:w-64"
         )}
         style={{
+          background: "#060e1e",
+          borderRight: "1px solid #0f1e38",
           willChange: "width",
           transition: "width 280ms cubic-bezier(0.4,0,0.2,1)",
         }}

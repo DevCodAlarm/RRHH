@@ -86,38 +86,44 @@ export function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-20 h-16 bg-background/95 backdrop-blur border-b border-border">
-      <div className="flex items-center justify-between h-full px-4 lg:px-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
+    <header
+      className="sticky top-0 z-20 h-14"
+      style={{
+        background: "rgba(240,242,245,0.88)",
+        backdropFilter: "blur(20px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.5)",
+        borderBottom: "1px solid rgba(10,22,40,0.07)",
+      }}
+    >
+      <div className="flex items-center justify-between h-full px-4 lg:px-6 gap-4">
+        {/* Left */}
+        <div className="flex items-center gap-3 flex-1">
+          <button
+            className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             onClick={onMenuClick}
           >
             <Menu className="h-5 w-5" />
-          </Button>
+          </button>
 
           {/* Search */}
-          <div className="hidden md:flex relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="hidden md:flex relative flex-1 max-w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="Buscar empleados, nominas..."
-              className="w-64 lg:w-80 pl-9 h-9 bg-secondary/50 border-0 focus-visible:ring-1"
+              placeholder="Buscar empleados, nóminas..."
+              className="pl-9 h-9 text-sm border-border/60 bg-white/60 focus-visible:ring-1 focus-visible:ring-ring/40 rounded-lg"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right */}
+        <div className="flex items-center gap-1">
           {/* Theme Toggle */}
-          <Button 
-            variant="ghost" 
-            size="icon"
+          <button
             onClick={toggleTheme}
-            className="text-muted-foreground hover:text-foreground"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
 
           {/* Notifications */}
           <Sheet
@@ -127,110 +133,114 @@ export function Header({ onMenuClick }: HeaderProps) {
               if (open) markAllRead()
             }}
           >
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
               onClick={() => setNotificationsOpen(true)}
-              className="relative text-muted-foreground hover:text-foreground"
+              className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-foreground rounded-full" />
+                <span
+                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+                  style={{ background: "#0a1628" }}
+                />
               )}
-            </Button>
+            </button>
 
             <SheetContent
               side="right"
-              className="border-l border-border bg-card w-[420px] sm:max-w-[420px] will-change-transform"
+              className="w-[400px] sm:max-w-[400px] will-change-transform"
+              style={{ background: "#ffffff", borderLeft: "1px solid #c8d0de" }}
             >
-              <SheetHeader className="pr-10">
-                <SheetTitle className="text-lg">Notificaciones</SheetTitle>
-                <SheetDescription>
-                  Panel de actividades del sistema (se actualiza en tiempo real).
+              <SheetHeader className="px-6 pt-6 pb-4" style={{ borderBottom: "1px solid #e4e8ef" }}>
+                <SheetTitle className="text-base font-semibold text-foreground">Notificaciones</SheetTitle>
+                <SheetDescription className="text-xs text-muted-foreground">
+                  Actividades recientes del sistema
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="px-4 pb-4 flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
+              <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid #e4e8ef" }}>
+                <button
                   onClick={clear}
-                  className="h-8"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                 >
-                  Limpiar
-                </Button>
-                <div className="ml-auto text-xs text-muted-foreground">
-                  {activities.length} eventos
-                </div>
+                  Limpiar todo
+                </button>
+                <span className="ml-auto text-xs text-muted-foreground">{activities.length} eventos</span>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-2 pb-4">
-                <div className="space-y-1">
-                  {activities.length === 0 ? (
-                    <div className="mx-2 rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
-                      Aún no hay actividades registradas.
-                    </div>
-                  ) : (
-                    activities.slice(0, 120).map((a) => {
+              <div className="flex-1 overflow-y-auto p-3">
+                {activities.length === 0 ? (
+                  <div className="rounded-xl border border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground mt-2">
+                    Sin actividades registradas
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {activities.slice(0, 120).map((a) => {
                       const { icon: Icon, color, bg } = getActivityConfig(a.type)
                       return (
                         <div
                           key={a.id}
-                          className="mx-2 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-secondary/40"
+                          className="rounded-xl border border-border bg-white px-3 py-3 hover:bg-secondary/30 transition-colors"
                         >
                           <div className="flex items-start gap-3">
-                            <div className={`mt-0.5 p-2 rounded-lg ${bg} shrink-0`}>
-                              <Icon className={`h-4 w-4 ${color}`} />
+                            <div className={`mt-0.5 p-1.5 rounded-lg ${bg} shrink-0`}>
+                              <Icon className={`h-3.5 w-3.5 ${color}`} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-foreground leading-tight line-clamp-2">
+                              <div className="text-[13px] font-medium text-foreground leading-snug line-clamp-2">
                                 {a.message}
                               </div>
-                              <div className="mt-1.5 flex items-center justify-between gap-2">
-                                <div className="text-[11px] text-muted-foreground truncate">
-                                  {a.actor?.name ? `${a.actor.name}${a.actor.role ? ` · ${a.actor.role}` : ""}` : "Sistema"}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                              <div className="mt-1 flex items-center justify-between gap-2">
+                                <span className="text-[11px] text-muted-foreground truncate">
+                                  {a.actor?.name ?? "Sistema"}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {new Date(a.ts).toLocaleTimeString("es-DO", { hour: "2-digit", minute: "2-digit" })}
-                                </div>
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
                       )
-                    })
-                  )}
-                </div>
+                    })}
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>
 
+          {/* Divider */}
+          <div className="w-px h-5 bg-border mx-1" />
+
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2 px-2">
-                <Avatar className="h-8 w-8">
+              <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-secondary transition-colors">
+                <Avatar className="h-7 w-7">
                   <AvatarImage src={user?.avatar} alt={user?.name} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                  <AvatarFallback
+                    className="text-[11px] font-bold"
+                    style={{ background: "#0a1628", color: "#4a7fd4" }}
+                  >
                     {user?.name ? getInitials(user.name) : "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden lg:block text-left">
-                  <p className="text-sm font-medium text-foreground">{user?.name || "Usuario"}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[13px] font-semibold text-foreground leading-none">
+                    {user?.name?.split(" ").slice(0, 2).join(" ") || "Usuario"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-none mt-0.5">
                     {user?.role ? roleDescriptions[user.role].name : "Sin rol"}
                   </p>
                 </div>
-              </Button>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuLabel>
-                <div>
-                  <p className="font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                </div>
+                <p className="font-semibold text-foreground">{user?.name}</p>
+                <p className="text-xs text-muted-foreground font-normal">{user?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -248,22 +258,29 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs font-semibold">Cambiar Usuario</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal uppercase tracking-widest">
+                Cambiar usuario
+              </DropdownMenuLabel>
               {SEED_USERS.map((seedUser) => (
                 <DropdownMenuItem
                   key={seedUser.id}
                   onClick={() => handleSwitchUser(seedUser.email, seedUser.password)}
-                  className={user?.id === seedUser.id ? "bg-accent" : ""}
+                  className={user?.id === seedUser.id ? "bg-secondary" : ""}
                 >
-                  <User className="mr-2 h-4 w-4" />
-                  <div className="flex flex-col gap-0">
-                    <span className="text-sm">{seedUser.name}</span>
-                    <span className="text-xs text-muted-foreground">{roleDescriptions[seedUser.role].name}</span>
+                  <div
+                    className="mr-2 w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0"
+                    style={{ background: "#0a1628", color: "#4a7fd4" }}
+                  >
+                    {seedUser.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[13px]">{seedUser.name.split(" ").slice(0, 2).join(" ")}</span>
+                    <span className="text-[11px] text-muted-foreground">{roleDescriptions[seedUser.role].name}</span>
                   </div>
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="text-foreground">
                 <LogOut className="mr-2 h-4 w-4" />
                 Cerrar Sesion
               </DropdownMenuItem>
